@@ -1,0 +1,43 @@
+{
+  "name": "Edit with Sublime Text",
+  "description": "Edit an HTML node with Sublime Text editor with live updates",
+  "author": "Joe Ertaba",
+  "version": "0.1.0",
+  "manifest_version": 2,
+  "permissions": [
+    "storage",
+    "tabs",
+    "<all_urls>",
+    "nativeMessaging",
+    "downloads",
+    "notifications"
+  ],
+  "background": {
+    "persistent": false,
+    "scripts": [
+      "config.js",
+      "common.js"
+    ]
+  },
+  "browser_action": {
+    "default_icon": {
+      "16": "data/icons/16.png",
+      "32": "data/icons/32.png",
+      "48": "data/icons/48.png",
+      "64": "data/icons/64.png"
+    }
+  },
+  "devtools_page": "devtools/index.html",
+  "options_ui": {
+    "page": "data/options/index.html",
+    "chrome_style": true
+  },
+  "icons": {
+    "16": "data/icons/16.png",
+    "32": "data/icons/32.png",
+    "48": "data/icons/48.png",
+    "64": "data/icons/64.png",
+    "128": "data/icons/128.png",
+    "256": "data/icons/256.png"
+  }
+}

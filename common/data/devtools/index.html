@@ -1,0 +1,59 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style type="text/css">
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: "Helvetica Neue",Helvetica,sans-serif;
+        font-size: 13px;
+        margin: 0 10px;
+      }
+      [vbox] {
+        display: flex;
+        flex-direction: column;
+      }
+      [hbox] {
+        display: flex;
+        flex-direction: row;
+      }
+      [align="center"] {
+        align-items: center;
+      }
+      [pack="center"] {
+        justify-content: center;
+      }
+      [flex="1"] {
+        flex: 1;
+      }
+      input[type=button] {
+        margin: 10px;
+      }
+      summary {
+        outline: none;
+      }
+      p {
+        margin: 5px;
+      }
+    </style>
+  </head>
+  <body vbox>
+    <div hbox align="center" pack="center">
+      <input type="button" value="Edit as HTML" id="command">
+      <label><input type="radio" name="mode" value="outerHTML" checked="true"> outerHTML</label>
+      <label><input type="radio" name="mode" value="innerHTML"> innerHTML</label>
+    </div>
+    <div style="border: dashed 1px #ccc; padding: 10px 0; border-width: 1px 0;">
+      Inspecting: <span id="inspect"></span>
+    </div>
+    <div flex="1" style="padding-top: 10px;  overflow: auto;">
+      <details open>
+        <summary>Logs</summary>
+      </details>
+    </div>
+    <script src="index.js"></script>
+  </body>
+</html>

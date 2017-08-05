@@ -1,0 +1,19 @@
+.inspectEditor {
+  border: dashed 1px #222831;
+  position: absolute;
+  pointer-events: none;
+  box-sizing: border-box;
+  z-index: 2147483647;
+}
+.inspectEditor:before {
+  box-sizing: border-box;
+  content: attr(data-value);
+  color: #EEEEEE;
+  background-color: #222831;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+  margin-top: -20px;
+  float: right;
+  padding: 3px 5px;
+}
