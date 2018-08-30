@@ -1,8 +1,8 @@
 {
-  "name": "Edit with Sublime Text",
-  "description": "Edit an HTML element and all its child nodes in Sublime Text editor with real-time updates",
+  "name": "Edit with Notepad++",
+  "description": "Edit an HTML element and all its child nodes in Notepad++ Text editor with real-time updates",
   "author": "Joe Ertaba",
-  "version": "0.1.2",
+  "version": "0.1.0",
   "manifest_version": 2,
   "permissions": [
     "storage",
@@ -10,8 +10,7 @@
     "<all_urls>",
     "nativeMessaging",
     "downloads",
-    "notifications",
-    "contextMenus"
+    "notifications"
   ],
   "background": {
     "persistent": false,
@@ -41,5 +40,5 @@
     "128": "data/icons/128.png",
     "256": "data/icons/256.png"
   },
-  "homepage_url": "http://add0n.com/edit-as-html.html?from=sublime"
+  "homepage_url": "http://add0n.com/edit-as-html.html?from=notepad"
 }

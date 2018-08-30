@@ -14,3 +14,6 @@ document.addEventListener('DOMContentLoaded', () => config.command().then(comman
   document.getElementById('command').value = command;
 }));
 document.getElementById('save').addEventListener('click', save);
+document.getElementById('support').addEventListener('click', () => chrome.tabs.create({
+  url: chrome.runtime.getManifest().homepage_url + '&rd=donate'
+}));

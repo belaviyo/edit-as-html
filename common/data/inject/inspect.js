@@ -36,7 +36,9 @@ window.mouseover = e => {
 window.click = e => {
   if (document.querySelector('.inspectEditor')) {
     e.preventDefault();
-    release();
+    chrome.runtime.sendMessage({
+      method: 'bounce-release'
+    });
 
     const target = e.target;
     const id = Math.random();
@@ -68,7 +70,9 @@ chrome.runtime.onMessage.addListener(request => {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Esc' || e.key === 'Escape') {
-    release();
+    chrome.runtime.sendMessage({
+      method: 'bounce-release'
+    });
   }
 });
 
