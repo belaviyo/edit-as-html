@@ -1,16 +1,14 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <style type="text/css">
       html,
       body {
         height: 100%;
-      }
-      body {
+        margin: 0;
         font-family: "Helvetica Neue",Helvetica,sans-serif;
         font-size: 13px;
-        margin: 0 10px;
       }
       [vbox] {
         display: flex;
@@ -30,26 +28,51 @@
         flex: 1;
       }
       input[type=button] {
-        margin: 10px;
+        margin: 0 5px 5px 0;
       }
       summary {
         outline: none;
+        cursor: pointer;
+        margin-bottom: 5px;
       }
       p {
-        margin: 5px;
+        padding: 5px;
+        margin: 0;
+        margin-left: 20px;
+        font-size: 90%;
+      }
+      p:nth-child(even) {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+      #class {
+        color: orange;
+      }
+      #toolbar {
+        white-space: nowrap;
+        flex-wrap: wrap;
+        padding: 5px 5px 0 5px;
+      }
+      #inspect-parent {
+        border: dashed 1px #ccc;
+        padding: 10px 5px;
+        border-width: 1px 0;
+      }
+      #log-parent {
+        padding: 10px 5px;
+        overflow: auto;
       }
     </style>
   </head>
   <body vbox>
-    <div hbox align="center" pack="center">
-      <input type="button" value="Edit as HTML" id="command">
-      <label><input type="radio" name="mode" value="outerHTML" checked="true"> outerHTML</label>
-      <label><input type="radio" name="mode" value="innerHTML"> innerHTML</label>
+    <div hbox id="toolbar" align="center">
+      <input type="button" id="outerHTML" value="Edit (outerHTML)">
+      <input type="button" id="innerHTML" value="Edit (innerHTML)">
+      <input type="button" value="Convert to Local Resouce" id="local" title="Convert a remote style or script into an inline one. You can convert and then edit with the external editor">
     </div>
-    <div style="border: dashed 1px #ccc; padding: 10px 0; border-width: 1px 0;">
-      Inspecting: <span id="inspect"></span>
+    <div id="inspect-parent">
+      Inspecting: <span id="inspect"></span><span id="class"></span> | <span id="dimension"></span>
     </div>
-    <div flex="1" style="padding-top: 10px;  overflow: auto;">
+    <div flex="1" id="log-parent">
       <details open>
         <summary>Logs</summary>
       </details>

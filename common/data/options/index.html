@@ -1,20 +1,26 @@
 <!DOCTYPE html>
 <html>
-<head><title>Options :: Edit as HTML</title></head>
+<head>
+  <meta charset="utf-8">
+  <title>Options :: Edit as HTML</title>
+</head>
 <body>
 
   <div>
     <label>Custom command: <input type="text" id="command" style="width: 100%; margin-top: 5px;"></label>
-    <p>OS level command to open the external text editor</p>
+    <p>A system-level command to open the external text editor</p>
   </div>
 
-  <div>
+  <div id="explore"></div>
+
+  <p>
     <button id="support">Support Development</button>
     <button id="save">Save</button>
     <span id="status"></span>
-  </div>
+  </p>
 
   <script src="/config.js"></script>
   <script src="index.js"></script>
+  <script async src="matched.js"></script>
 </body>
 </html>

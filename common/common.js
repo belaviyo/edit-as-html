@@ -31,22 +31,24 @@ chrome.browserAction.onClicked.addListener(tab => {
   });
 });
 
-function editor(content, observe) {
+function editor(request, observe) {
   const native = chrome.runtime.connectNative(config.id);
   native.onDisconnect.addListener(() => observe());
   native.onMessage.addListener(observe);
   native.postMessage({
     permissions: ['crypto', 'fs', 'path', 'os'],
-    args: [content],
+    args: [request.content, request.ext],
     script: `
       const crypto = require('crypto');
       const fs = require('fs');
 
+      const [content, ext] = args;
+
       const filename = require('path').join(
         require('os').tmpdir(),
-        'editor-' + crypto.randomBytes(4).readUInt32LE(0) + '.html'
+        'editor-' + crypto.randomBytes(4).readUInt32LE(0) + '.' + ext
       );
-      fs.writeFile(filename, args[0], e => {
+      fs.writeFile(filename, content, e => {
         if (e) {
           push({
             method: 'error',
@@ -83,29 +85,43 @@ function editor(content, observe) {
   return native;
 }
 
-var cache = {};
-
-chrome.runtime.onMessage.addListener((request, sender, response) => {
-  if (request.method === 'get-content') {
-    response(cache[request.id]);
-    delete cache[request.id];
-  }
-  else if (request.method === 'get-id') {
-    response(sender.tab.id);
-  }
-  else if (request.method === 'bounce-release') {
+chrome.runtime.onMessage.addListener((request, sender) => {
+  if (request.method === 'bounce-release') {
     chrome.tabs.sendMessage(sender.tab.id, {
       method: 'release'
     });
   }
 });
 
+const panels = {};
+chrome.tabs.onRemoved.addListener(tabId => delete panels[tabId]);
+
 chrome.runtime.onConnect.addListener(devToolsConnection => {
-  const devToolsListener = request => {
+  if (devToolsConnection.name === 'devtools-panel') {
+    return devToolsConnection.onMessage.addListener(request => {
+      if (request.method === 'tabId') {
+        panels[request.tabId] = devToolsConnection;
+        devToolsConnection.onDisconnect.addListener(() => {
+          delete panels[request.tabId];
+        });
+      }
+    });
+  }
+  const connectListener = request => {
+    const id = devToolsConnection.sender.tab.id;
+    const log = msg => panels[id] ? panels[id].postMessage({
+      method: 'log',
+      msg
+    }) : '';
     if (request.method === 'edit-with') {
-      const native = editor(request.content, res => {
+      const native = editor(request, res => {
         if (!res) {
-          notify('Native client is not installed. Follow the instruction.');
+          const lastError = chrome.runtime.lastError;
+          let msg = 'The native client is not installed or the native application exited with an error.';
+          if (lastError) {
+            msg += ' -- ' + lastError.message;
+          }
+          notify(msg);
           chrome.tabs.create({
             url: '/data/guide/index.html'
           });
@@ -114,10 +130,7 @@ chrome.runtime.onConnect.addListener(devToolsConnection => {
           notify(res.error);
         }
         else if (res.method === 'file-created') {
-          devToolsConnection.postMessage({
-            method: 'log',
-            msg: 'Temporary file is created at ' + res.filename
-          });
+          log('Temporary file is created at ' + res.filename);
           config.command().then(command => {
             chrome.runtime.sendNativeMessage(config.id, {
               permissions: ['child_process'],
@@ -138,46 +151,23 @@ chrome.runtime.onConnect.addListener(devToolsConnection => {
           });
         }
         else if (res.method === 'file-changed') {
-          devToolsConnection.postMessage({
-            method: 'log',
-            msg: 'File content is changed'
-          });
-          const id = Math.random();
-          cache[id] = res.content;
-          chrome.tabs.executeScript(request.tabId, {
-            allFrames: true,
-            matchAboutBlank: true,
-            code: `
-              chrome.runtime.sendMessage({
-                method: 'get-content',
-                id: ${id}
-              }, content => {
-                const node = document.querySelector('[data-editor="${request.id}"]');
-                if (node) {
-                  node.${request.type} = content;
-                  node.dataset.editor = ${request.id};
-                }
-              });
-            `
-          });
+          log('File content is changed');
           devToolsConnection.postMessage({
             method: 'file-changed',
-            id: request.id,
-            type: request.type,
             content: res.content
           });
         }
       });
-      devToolsListener.natives.push(native);
+      connectListener.natives.push(native);
     }
   };
-  devToolsListener.natives = [];
+  connectListener.natives = [];
   // add the listener
-  devToolsConnection.onMessage.addListener(devToolsListener);
-
+  devToolsConnection.onMessage.addListener(connectListener);
+  // disconnect
   devToolsConnection.onDisconnect.addListener(() => {
-    devToolsListener.natives.forEach(n => n.disconnect());
-    devToolsConnection.onMessage.removeListener(devToolsListener);
+    connectListener.natives.forEach(n => n.disconnect());
+    devToolsConnection.onMessage.removeListener(connectListener);
   });
 });
 
@@ -197,55 +187,49 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   chrome.tabs.executeScript(tab.id, {
     frameId: info.frameId,
     runAt: 'document_start',
+    matchAboutBlank: true,
     code: `{
       const target = document.activeElement;
-      const id = Math.random();
-      target.dataset.editor = id;
       const background = chrome.runtime.connect({
-        name: 'inject-page'
+        name: 'context-menu'
       });
       background.postMessage({
         method: 'edit-with',
         content: target.value,
-        id,
-        type: 'value',
-        tabId: ${tab.id}
+        ext: 'txt'
+      });
+      background.onMessage.addListener(request => {
+        if (request.method === 'file-changed') {
+          target.value = request.content;
+        }
       });
     }`
   });
 });
 
 // FAQs & Feedback
-chrome.storage.local.get({
-  'version': null,
-  'faqs': true,
-  'last-update': 0
-}, prefs => {
-  const version = chrome.runtime.getManifest().version;
-
-  if (prefs.version ? (prefs.faqs && prefs.version !== version) : true) {
-    const now = Date.now();
-    const doUpdate = (now - prefs['last-update']) / 1000 / 60 / 60 / 24 > 45;
-    chrome.storage.local.set({
-      version,
-      'last-update': doUpdate ? Date.now() : prefs['last-update']
-    }, () => {
-      // do not display the FAQs page if last-update occurred less than 45 days ago.
-      if (doUpdate) {
-        const p = Boolean(prefs.version);
-        chrome.tabs.create({
-          url: chrome.runtime.getManifest().homepage_url + '&version=' + version +
-            '&type=' + (p ? ('upgrade&p=' + prefs.version) : 'install'),
-          active: p === false
-        });
+{
+  const {onInstalled, setUninstallURL, getManifest} = chrome.runtime;
+  const {name, version} = getManifest();
+  const page = getManifest().homepage_url;
+  onInstalled.addListener(({reason, previousVersion}) => {
+    chrome.storage.local.get({
+      'faqs': true,
+      'last-update': 0
+    }, prefs => {
+      if (reason === 'install' || (prefs.faqs && reason === 'update')) {
+        const doUpdate = (Date.now() - prefs['last-update']) / 1000 / 60 / 60 / 24 > 45;
+        if (doUpdate && previousVersion !== version) {
+          chrome.tabs.create({
+            url: page + '&version=' + version +
+              (previousVersion ? '&p=' + previousVersion : '') +
+              '&type=' + reason,
+            active: reason === 'install'
+          });
+          chrome.storage.local.set({'last-update': Date.now()});
+        }
       }
     });
-  }
-});
-
-{
-  const {name, version} = chrome.runtime.getManifest();
-  chrome.runtime.setUninstallURL(
-    chrome.runtime.getManifest().homepage_url + '&rd=feedback&name=' + name + '&version=' + version
-  );
+  });
+  setUninstallURL(page + '&rd=feedback&name=' + encodeURIComponent(name) + '&version=' + version);
 }

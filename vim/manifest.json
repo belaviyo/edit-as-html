@@ -1,8 +1,8 @@
 {
-  "name": "Edit with Sublime Text",
-  "description": "Edit an HTML element and all its child nodes in Sublime Text editor with real-time updates",
+  "name": "Edit with VIM text editor",
+  "description": "Edit an HTML element and all its child nodes in VIM text editor with real-time updates",
   "author": "Joe Ertaba",
-  "version": "0.1.4",
+  "version": "0.1.1",
   "manifest_version": 2,
   "permissions": [
     "storage",
@@ -42,5 +42,5 @@
     "128": "data/icons/128.png",
     "256": "data/icons/256.png"
   },
-  "homepage_url": "https://add0n.com/edit-as-html.html?from=sublime"
+  "homepage_url": "https://add0n.com/edit-as-html.html?from=vim"
 }

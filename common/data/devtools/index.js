@@ -1,14 +1,29 @@
 'use strict';
 
-var background = chrome.runtime.connect({
-  name: 'devtools-page'
+const background = chrome.runtime.connect({
+  name: 'devtools-panel'
 });
 
-document.getElementById('command').addEventListener('click', () => {
-  const id = Math.random();
-  const type = document.querySelector('input[type=radio]:checked').value;
+background.onMessage.addListener(request => {
+  if (request.method === 'log') {
+    const p = document.createElement('p');
+    p.textContent = (new Date()).toLocaleTimeString() + ': ' + request.msg;
+    document.querySelector('details').appendChild(p);
+    p.scrollIntoView();
+  }
+});
+background.postMessage({
+  method: 'tabId',
+  tabId: chrome.devtools.inspectedWindow.tabId
+});
+
+document.getElementById('toolbar').addEventListener('click', e => {
+  const type = e.target.id;
+  if (type !== 'outerHTML' && type !== 'innerHTML') {
+    return;
+  }
+
   const cmd = `
-    $0.dataset.editor = ${id};
     $0.${type}
   `;
   chrome.devtools.inspectedWindow.eval(cmd, (content, exception) => {
@@ -16,15 +31,57 @@ document.getElementById('command').addEventListener('click', () => {
       alert(exception.value);
     }
     else {
-      background.postMessage({
-        method: 'edit-with',
-        content,
-        id,
-        type,
-        tabId: chrome.devtools.inspectedWindow.tabId
-      });
+      const tabId = chrome.devtools.inspectedWindow.tabId;
+      chrome.tabs.executeScript(tabId, {
+        runAt: 'document_start',
+        matchAboutBlank: true,
+        allFrames: true,
+        code: `var test = target => {
+          const background = chrome.runtime.connect({
+            name: 'devtools-inject'
+          });
+          let ext = 'html';
+          if (target.tagName === 'STYLE' && '${type}' === 'innerHTML') {
+            ext = 'css';
+          }
+          if (target.tagName === 'SCRIPT' && '${type}' === 'innerHTML') {
+            ext = 'js';
+          }
+          background.postMessage({
+            method: 'edit-with',
+            content: target.${type},
+            ext
+          });
+          background.onMessage.addListener(request => {
+            if (request.method === 'file-changed') {
+              if ('${type}' === 'outerHTML') {
+                const template = document.createElement('template');
+                template.innerHTML = request.content;
+                const root = template.content.firstChild;
+                target.replaceWith(template.content);
+                target = root;
+              }
+              else {
+                target.${type} = request.content;
+              }
+            }
+          });
+        };`
+      }, () => chrome.devtools.inspectedWindow.eval(`test($0)`, {
+        useContentScriptContext: true
+      }));
     }
   });
+});
+document.getElementById('local').addEventListener('click', () => {
+  chrome.devtools.inspectedWindow.eval(`{
+    const target = $0;
+    fetch(target.href || target.src).then(r => r.text()).then(content => {
+      const e = document.createElement(target.tagName === 'LINK' ? 'style' : target.localName);
+      e.textContent = content;
+      target.replaceWith(e);
+    }).catch(e => alert(e.message));
+  };`);
 });
 
 function inspect() {
@@ -36,12 +93,22 @@ function inspect() {
       .filter((n, i, l) => l.indexOf(n) === i)
       .map(n => n.localName)
       .filter(n => n);
-    list.join('>') + (cl ? '.' + cl : '') + ' | ' +
-      rect.width.toFixed(2) + 'x' + rect.height.toFixed(2)
+
+    [list, cl, {
+      width: rect.width,
+      height: rect.height
+    }, Boolean(node.textContent), (node.tagName === 'LINK' && node.href && node.href.indexOf('.css') !== -1) || (node.tagName === 'SCRIPT' && node.src)]
   }`;
   chrome.devtools.inspectedWindow.eval(cmd, (result, exception) => {
     if (!exception) {
-      document.getElementById('inspect').textContent = result;
+      const [list, cl, rect, text, remote] = result;
+
+      document.getElementById('inspect').textContent = list.join('>');
+      document.getElementById('class').textContent = cl ? '.' + cl : '';
+      document.getElementById('dimension').textContent = rect.width.toFixed(2) + 'x' + rect.height.toFixed(2);
+
+      document.getElementById('local').disabled = !remote;
+      document.getElementById('innerHTML').disabled = text === false;
     }
   });
 }
@@ -49,19 +116,3 @@ function inspect() {
 chrome.devtools.panels.elements.onSelectionChanged.addListener(inspect);
 
 document.addEventListener('DOMContentLoaded', inspect);
-
-background.onMessage.addListener(request => {
-  if (request.method === 'log') {
-    const p = document.createElement('p');
-    p.textContent = (new Date()).toLocaleTimeString() + ': ' + request.msg;
-    document.querySelector('details').appendChild(p);
-  }
-});
-
-/*
-chrome.devtools.inspectedWindow.onResourceAdded.addListener(resource => {
-  resource.getContent(content => {
-    console.log(content);
-  });
-});
-*/
