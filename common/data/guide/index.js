@@ -1,6 +1,6 @@
 'use strict';
 
-var os = 'windows';
+let os = 'windows';
 if (navigator.userAgent.indexOf('Mac') !== -1) {
   os = 'mac';
 }
@@ -9,7 +9,7 @@ else if (navigator.userAgent.indexOf('Linux') !== -1) {
 }
 document.body.dataset.os = (os === 'mac' || os === 'linux') ? 'linux' : 'windows';
 
-var notify = (function() {
+const notify = (function() {
   const parent = document.getElementById('notify');
   const elems = [];
   return {
@@ -40,32 +40,41 @@ var notify = (function() {
 document.addEventListener('click', e => {
   const target = e.target;
   if (target.dataset.cmd === 'download') {
-    notify.show('info', 'Looking for the latest version of the native-client', 60000);
-    const req = new window.XMLHttpRequest();
-    req.open('GET', 'https://api.github.com/repos/belaviyo/native-client/releases/latest');
-    req.responseType = 'json';
-    req.onload = () => {
-      try {
-        chrome.downloads.download({
-          url: req.response.assets.filter(a => a.name === os + '.zip')[0].browser_download_url,
-          filename: os + '.zip'
-        }, () => {
-          notify.destroy();
-          notify.show('success', 'Download is started. Extract and install when it is done');
-          document.body.dataset.step = 1;
-        });
+    chrome.permissions.request({
+      permissions: ['downloads']
+    }, granted => {
+      if (granted) {
+        notify.show('info', 'Looking for the latest version of the native-client', 60000);
+        const req = new window.XMLHttpRequest();
+        req.open('GET', 'https://api.github.com/repos/belaviyo/native-client/releases/latest');
+        req.responseType = 'json';
+        req.onload = () => {
+          try {
+            chrome.downloads.download({
+              url: req.response.assets.filter(a => a.name === os + '.zip')[0].browser_download_url,
+              filename: os + '.zip'
+            }, () => {
+              notify.destroy();
+              notify.show('success', 'Download is started. Extract and install when it is done');
+              document.body.dataset.step = 1;
+            });
+          }
+          catch (e) {
+            notify.show('error', e.message || e);
+          }
+        };
+        req.onerror = () => {
+          notify('error', 'Something went wrong! Please download the package manually');
+          window.setTimeout(() => {
+            window.open('https://github.com/belaviyo/native-client/releases');
+          }, 5000);
+        };
+        req.send();
       }
-      catch (e) {
-        notify.show('error', e.message || e);
+      else {
+        notify.show('error', 'Cannot initiate file downloading. Please download the file manually', 60000);
       }
-    };
-    req.onerror = () => {
-      notify('error', 'Something went wrong! Please download the package manually');
-      window.setTimeout(() => {
-        window.open('https://github.com/belaviyo/native-client/releases');
-      }, 5000);
-    };
-    req.send();
+    });
   }
   else if (target.dataset.cmd === 'check') {
     chrome.runtime.sendNativeMessage('com.add0n.native_client', {

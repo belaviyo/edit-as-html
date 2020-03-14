@@ -31,45 +31,59 @@ document.getElementById('toolbar').addEventListener('click', e => {
       alert(exception.value);
     }
     else {
-      const tabId = chrome.devtools.inspectedWindow.tabId;
-      chrome.tabs.executeScript(tabId, {
-        runAt: 'document_start',
-        matchAboutBlank: true,
-        allFrames: true,
-        code: `var test = target => {
-          const background = chrome.runtime.connect({
-            name: 'devtools-inject'
-          });
-          let ext = 'html';
-          if (target.tagName === 'STYLE' && '${type}' === 'innerHTML') {
-            ext = 'css';
+      chrome.devtools.inspectedWindow.eval('location.href', (result, isException) => {
+        if (isException) {
+          return alert('Cannot access page URL');
+        }
+        chrome.permissions.request({
+          origins: [result]
+        }, granted => {
+          if (granted) {
+            const tabId = chrome.devtools.inspectedWindow.tabId;
+            chrome.tabs.executeScript(tabId, {
+              runAt: 'document_start',
+              matchAboutBlank: true,
+              allFrames: true,
+              code: `var test = target => {
+                const background = chrome.runtime.connect({
+                  name: 'devtools-inject'
+                });
+                let ext = 'html';
+                if (target.tagName === 'STYLE' && '${type}' === 'innerHTML') {
+                  ext = 'css';
+                }
+                if (target.tagName === 'SCRIPT' && '${type}' === 'innerHTML') {
+                  ext = 'js';
+                }
+                background.postMessage({
+                  method: 'edit-with',
+                  content: target.${type},
+                  ext
+                });
+                background.onMessage.addListener(request => {
+                  if (request.method === 'file-changed') {
+                    if ('${type}' === 'outerHTML') {
+                      const template = document.createElement('template');
+                      template.innerHTML = request.content;
+                      const root = template.content.firstChild;
+                      target.replaceWith(template.content);
+                      target = root;
+                    }
+                    else {
+                      target.${type} = request.content;
+                    }
+                  }
+                });
+              };`
+            }, () => chrome.devtools.inspectedWindow.eval(`test($0)`, {
+              useContentScriptContext: true
+            }));
           }
-          if (target.tagName === 'SCRIPT' && '${type}' === 'innerHTML') {
-            ext = 'js';
+          else {
+            alert('Cannot access to the DOM object. Permission denied');
           }
-          background.postMessage({
-            method: 'edit-with',
-            content: target.${type},
-            ext
-          });
-          background.onMessage.addListener(request => {
-            if (request.method === 'file-changed') {
-              if ('${type}' === 'outerHTML') {
-                const template = document.createElement('template');
-                template.innerHTML = request.content;
-                const root = template.content.firstChild;
-                target.replaceWith(template.content);
-                target = root;
-              }
-              else {
-                target.${type} = request.content;
-              }
-            }
-          });
-        };`
-      }, () => chrome.devtools.inspectedWindow.eval(`test($0)`, {
-        useContentScriptContext: true
-      }));
+        });
+      });
     }
   });
 });
